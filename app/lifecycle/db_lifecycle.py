@@ -21,7 +21,8 @@ class DatabaseLifecycle:
             log.info("Database manager initialized successfully.")
         except Exception as e:
             log.critical(
-                "FATAL: Database initialization failed during startup: {}", e,
+                "FATAL: Database initialization failed during startup: {}",
+                e,
                 exc_info=True,
             )
             raise RuntimeError(f"Database initialization failed: {e}") from e
@@ -35,6 +36,7 @@ class DatabaseLifecycle:
             log.info("Database manager shutdown complete.")
         except Exception as e:
             log.error(
-                "Error during database shutdown: {}", e,
+                "Error during database shutdown: {}",
+                e,
                 exc_info=True,
             )
