@@ -1,10 +1,8 @@
 """
 Application lifecycle management.
 
-Handles startup and shutdown events including:
-- Sentry error monitoring initialization
-- aiohttp session management
-- Database lifecycle hooks
+Handles startup and shutdown sequences including initialization
+of monitoring, HTTP sessions, and database connections.
 """
 
 from typing import Optional
@@ -19,7 +17,7 @@ from app.lifecycle.db_lifecycle import DatabaseLifecycle
 
 
 class AppLifecycle:
-    """Orchestrates application startup and shutdown procedures."""
+    """Manages the startup and shutdown of the FastAPI application."""
 
     app: FastAPI
     aiohttp_session: Optional[aiohttp.ClientSession]
@@ -29,30 +27,27 @@ class AppLifecycle:
         self.aiohttp_session = None
 
     async def on_startup(self) -> None:
-        """Run startup sequence for the application."""
-        log.info("Starting up application...")
+        """Orchestrates the application's startup sequence."""
+        log.info("Starting {} app...", settings.APP_NAME)
 
-        sentry_sdk.init(
-            str(settings.GLITCHTIP_DSN) if settings.GLITCHTIP_DSN else None,
-            traces_sample_rate=1.0,
-        )
+        sentry_sdk.init(str(settings.GLITCHTIP_DSN), traces_sample_rate=1.0)
 
         await self._initialize_aiohttp()
         await DatabaseLifecycle.initialize()
 
-        log.info("Application startup complete. Ready to serve requests.")
+        log.info("{} startup complete. Ready to serve requests.", settings.APP_NAME)
 
     async def on_shutdown(self) -> None:
-        """Run shutdown sequence for the application."""
-        log.info("Shutting down application...")
+        """Orchestrates the application's shutdown sequence."""
+        log.info("Shutting down {} app...", settings.APP_NAME)
 
         await self._close_aiohttp()
         await DatabaseLifecycle.shutdown()
 
-        log.info("Application shutdown complete.")
+        log.info("{} shutdown complete.", settings.APP_NAME)
 
     async def _initialize_aiohttp(self) -> None:
-        """Create and attach a shared aiohttp client session."""
+        """Initializes the shared aiohttp client session."""
         self.aiohttp_session = aiohttp.ClientSession(
             timeout=aiohttp.ClientTimeout(total=settings.AIOHTTP_TIMEOUT_SECONDS)
         )
@@ -60,10 +55,10 @@ class AppLifecycle:
         log.info("Aiohttp session initialized.")
 
     async def _close_aiohttp(self) -> None:
-        """Close the shared aiohttp client session if it exists."""
+        """Gracefully closes the shared aiohttp client session."""
         try:
             if self.aiohttp_session and not self.aiohttp_session.closed:
                 await self.aiohttp_session.close()
                 log.info("Aiohttp session closed.")
         except Exception as e:
-            log.exception(f"Error closing aiohttp session: {e}")
+            log.error("Error closing aiohttp session: {}", e, exc_info=True)
