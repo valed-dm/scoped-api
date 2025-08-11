@@ -1,11 +1,13 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
+from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.db_manager import get_db
 from user.create import create_user
-from user.user import UserCreate, UserOut
+from user.user import UserCreate
+from user.user import UserOut
 
 
 user_register_router = APIRouter()
