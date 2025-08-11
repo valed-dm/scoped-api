@@ -3,7 +3,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Annotated
 
-from pydantic import AnyHttpUrl, Field
+from pydantic import AnyHttpUrl
+from pydantic import Field
 from pydantic_settings import SettingsConfigDict
 
 from app.core.db_config import DatabaseSettings
@@ -168,7 +169,9 @@ class Settings(DatabaseSettings):
 
     TEST_FULL_NAME: Annotated[
         str,
-        Field(..., validation_alias="TEST_FULL_NAME", description="Test user full name."),
+        Field(
+            ..., validation_alias="TEST_FULL_NAME", description="Test user full name."
+        ),
     ]
 
     TEST_SCOPE: Annotated[
