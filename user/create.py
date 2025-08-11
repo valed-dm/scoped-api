@@ -1,13 +1,15 @@
 """Create a new user module."""
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException
+from fastapi import status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.auth import get_password_hash
 from app.core.logging import log
 from app.db import User as DBUser
-from user.user import UserCreate, UserOut
+from user.user import UserCreate
+from user.user import UserOut
 
 
 async def create_user(db: AsyncSession, user: UserCreate) -> UserOut:
@@ -47,7 +49,8 @@ async def create_user(db: AsyncSession, user: UserCreate) -> UserOut:
 
     except IntegrityError as e:
         log.warning(
-            "Database IntegrityError on user creation: {constraint}, username: {username}",
+            "Database IntegrityError on user creation:"
+            " {constraint}, username: {username}",
             constraint=str(e.orig),
             username=user.username,
         )

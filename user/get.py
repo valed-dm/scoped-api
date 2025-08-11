@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Security, status
+from fastapi import Depends
+from fastapi import HTTPException
+from fastapi import Security
+from fastapi import status
 from fastapi.security import SecurityScopes
 import jwt
 from pydantic import ValidationError
@@ -12,7 +15,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.auth.token_schema import TokenData, oauth2_scheme
+from app.auth.token_schema import TokenData
+from app.auth.token_schema import oauth2_scheme
 from app.core.config import settings
 from app.db import User
 from app.db.db_manager import get_db
@@ -85,7 +89,9 @@ async def get_current_user(
     )
 
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
         username: str | None = payload.get("sub")
         if username is None:
             raise credentials_exception
