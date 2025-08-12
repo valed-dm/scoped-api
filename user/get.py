@@ -118,7 +118,7 @@ async def get_current_user(
 
 
 async def get_current_active_user(
-    current_user: Annotated[User, Security(get_current_user, scopes=["admin user"])],
+    current_user: Annotated[User, Security(get_current_user, scopes=["user"])],
 ) -> User | None:
     """
     Ensure the current user is active (not disabled).
