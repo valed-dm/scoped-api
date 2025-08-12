@@ -61,19 +61,19 @@ The API leverages modern Python asynchronous features and JWT token-based securi
        source venv/bin/activate # linux/macOS
        venv\Scripts\activate # windows
     ```
-   
+
 3. **Install dependencies:**
-    
+
     ```bash
     poetry install --no-root
     ```
-   
+
 4. **Configure environment variables:**
 
     ```bash
     cp .env.example .env # edit secrets
     ```
-   
+
    - DATABASE_URL (PostgreSQL connection string)
    - SECRET_KEY (JWT signing secret)
    - ALGORITHM (e.g., HS256)
@@ -85,7 +85,7 @@ The API leverages modern Python asynchronous features and JWT token-based securi
     ```bash
     alembic upgrade head
     ```
-   
+
 6. **Start the server:**
 
     ```bash
@@ -144,3 +144,38 @@ The API leverages modern Python asynchronous features and JWT token-based securi
 This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for full details.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+
+### SCREENSHOTS:
+
+[<img src="docs/images/img_01.png" width="1000"/>]()
+
+[<img src="docs/images/img_02.png" width="1000"/>]()
+
+[<img src="docs/images/img_03.png" width="1000"/>]()
+
+[<img src="docs/images/img_04.png" width="1000"/>]()
+
+[<img src="docs/images/img_05.png" width="1000"/>]()
+
+[<img src="docs/images/img_06.png" width="1000"/>]()
+
+[<img src="docs/images/img_07.png" width="1000"/>]()
+
+[<img src="docs/images/img_08.png" width="1000"/>]()
+
+[<img src="docs/images/img_09.png" width="1000"/>]()
+
+[<img src="docs/images/img_10.png" width="1000"/>]()
+
+[<img src="docs/images/img_11.png" width="1000"/>]()
+
+[<img src="docs/images/img_12.png" width="1000"/>]()
+
+[<img src="docs/images/img_13.png" width="1000"/>]()
+
+[<img src="docs/images/img_14.png" width="1000"/>]()
+
+[<img src="docs/images/img_15.png" width="1000"/>]()
+
+[<img src="docs/images/img_16.png" width="1000"/>]()
