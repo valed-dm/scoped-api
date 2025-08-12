@@ -20,7 +20,7 @@ user_me_router = APIRouter()
 @user_me_router.get("/users/me/", response_model=User)
 async def read_users_me(
     current_user: Annotated[
-        DBUser, Security(get_current_active_user, scopes=["admin user"])
+        DBUser, Security(get_current_active_user, scopes=["user"])
     ],
 ) -> User:
     """
@@ -40,7 +40,7 @@ async def update_own_user(
     user_update: UserBaseUpdate,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[
-        DBUser, Security(get_current_active_user, scopes=["admin user"])
+        DBUser, Security(get_current_active_user, scopes=["user"])
     ],
 ) -> User:
     """
