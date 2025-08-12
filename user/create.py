@@ -2,6 +2,7 @@
 
 from fastapi import HTTPException
 from fastapi import status
+from sqlalchemy import select, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,22 +17,40 @@ async def create_user(db: AsyncSession, user: UserCreate) -> UserOut:
     """
     Create a new user in the database atomically.
 
-    This function relies on the database's UNIQUE constraints to ensure data
-    integrity for username and email, providing safe race condition handling.
+    This function first performs a pre-flight check for an existing username or
+    email to provide fast, user-friendly error messages. It then relies on the
+    database's UNIQUE constraints within a nested transaction to ensure data
+    integrity and provide safe race condition handling.
 
     Args:
-        db: Async SQLAlchemy session.
-        user: UserCreate Pydantic model with input user data.
+        db: The SQLAlchemy async database session (assumed to be in a transaction).
+        user: The Pydantic model containing the input data for creating a user.
 
     Returns:
-        UserOut: Pydantic model of the newly created user.
+        A Pydantic UserOut model of the newly created user.
 
     Raises:
-        HTTPException: Raised with 409 status if username or email is already taken,
-                       or 500 for other database errors.
+        HTTPException: If the username or email is already taken.
     """
-    hashed_password = get_password_hash(user.password)
+    stmt = select(DBUser).where(
+        or_(DBUser.username == user.username, DBUser.email == user.email)
+    )
+    result = await db.execute(stmt)
+    existing_user = result.scalars().first()
 
+    if existing_user:
+        if existing_user.username == user.username:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="A user with this username already exists.",
+            )
+        if existing_user.email == user.email:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="A user with this email already exists.",
+            )
+
+    hashed_password = get_password_hash(user.password)
     db_user = DBUser(
         username=user.username,
         email=user.email,
@@ -42,25 +61,23 @@ async def create_user(db: AsyncSession, user: UserCreate) -> UserOut:
     )
 
     try:
-        async with db.begin():
+        async with db.begin_nested():
             db.add(db_user)
-
-        await db.refresh(db_user)
+            await db.flush()
+            await db.refresh(db_user)
 
     except IntegrityError as e:
         log.warning(
-            "Database IntegrityError on user creation:"
-            " {constraint}, username: {username}",
-            constraint=str(e.orig),
-            username=user.username,
+            "Database IntegrityError (race condition) on user creation",
+            extra={"constraint": str(e.orig), "username": user.username},
         )
         error_msg = str(e.orig)
-        if "users_username_key" in error_msg:
+        if "ix_users_username" in error_msg:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="A user with this username already exists.",
             ) from e
-        if "users_email_key" in error_msg:
+        if "ix_users_email" in error_msg:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="A user with this email already exists.",
