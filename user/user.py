@@ -25,6 +25,8 @@ class User(BaseModel):
     disabled: bool = False
     scopes: str
 
+    model_config = ConfigDict(from_attributes=True)
+
 
 class UserCreate(User):
     """
@@ -46,7 +48,7 @@ class UserOut(User):
     """
 
     id: int
-    model_config = ConfigDict()
+
 
 
 class UserBaseUpdate(BaseModel):
