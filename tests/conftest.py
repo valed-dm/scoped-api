@@ -1,4 +1,4 @@
-from typing import AsyncGenerator
+from typing import AsyncGenerator, cast, Any
 from typing import Callable
 from typing import Generator
 
@@ -30,9 +30,9 @@ def app() -> FastAPI:
 
 
 @pytest.fixture
-async def async_client(app: FastAPI) -> AsyncGenerator[AsyncClient, None]:
-    """Function-scoped async client."""
-    transport = ASGITransport(app=app)
+async def async_client(app_with_db: FastAPI) -> AsyncGenerator[AsyncClient, None]:
+    """Function-scoped async client bound to the overridden DB."""
+    transport = ASGITransport(app=app_with_db)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
 
@@ -45,17 +45,14 @@ def docker_client() -> Generator[docker.client.DockerClient, None, None]:
     """Session-scoped Docker client for performance."""
     client = docker.from_env()
     yield client
-    client.close()  # type: ignore[no-untyped-call]
+    client.close()  # type: ignore
 
 
 @pytest.fixture(scope="function")
 def postgres_container(
     docker_client: docker.client.DockerClient,
 ) -> Generator[PostgresContainer, None, None]:
-    """
-    Function-scoped Postgres container. Starts a fresh DB for each test.
-    This is the key to ensuring complete isolation and clean teardown.
-    """
+    """Fresh Postgres container per test for full isolation."""
     with PostgresContainer("postgres:15") as postgres:
         yield postgres
 
@@ -64,9 +61,7 @@ def postgres_container(
 async def engine(
     postgres_container: PostgresContainer,
 ) -> AsyncGenerator[AsyncEngine, None]:
-    """
-    Creates a new engine for each test function and creates the schema.
-    """
+    """Creates a new async engine & schema for each test."""
     raw_url = postgres_container.get_connection_url()
     db_url = raw_url.replace("+psycopg2", "").replace(
         "postgresql", "postgresql+asyncpg", 1
@@ -78,16 +73,12 @@ async def engine(
         await conn.run_sync(Base.metadata.create_all)
 
     yield engine
-
     await engine.dispose()
 
 
 @pytest.fixture(scope="function")
 async def db_session(engine: AsyncEngine) -> AsyncGenerator[AsyncSession, None]:
-    """
-    Provides the primary SQLAlchemy session for a test.
-    Operations are committed directly to the test-specific database.
-    """
+    """Primary SQLAlchemy session for a test."""
     session_factory = async_sessionmaker(bind=engine, expire_on_commit=False)
     async with session_factory() as session:
         yield session
@@ -95,10 +86,7 @@ async def db_session(engine: AsyncEngine) -> AsyncGenerator[AsyncSession, None]:
 
 @pytest.fixture(scope="function")
 async def raw_db_session(engine: AsyncEngine) -> AsyncGenerator[AsyncSession, None]:
-    """
-    Provides a second, independent session to verify the committed state
-    of the database, bypassing the primary test session's state.
-    """
+    """Independent session to verify committed state."""
     session_factory = async_sessionmaker(bind=engine, expire_on_commit=False)
     async with session_factory() as session:
         yield session
@@ -111,18 +99,6 @@ async def raw_db_session(engine: AsyncEngine) -> AsyncGenerator[AsyncSession, No
 def override_get_db(
     db_session: AsyncSession,
 ) -> Callable[[], AsyncGenerator[AsyncSession, None]]:
-    """
-    Pytest fixture that returns a dependency-override function for get_db.
-
-    This pattern is used to replace the production `get_db` dependency in
-    FastAPI with a function that yields a single, test-specific database
-    session, ensuring test isolation.
-
-    Returns:
-        A callable function that, when used as a dependency override, provides
-        an async generator yielding a test database session.
-    """
-
     async def _override_get_db() -> AsyncGenerator[AsyncSession, None]:
         yield db_session
 
@@ -134,23 +110,9 @@ def app_with_db(
     app: FastAPI,
     override_get_db: Callable[[], AsyncGenerator[AsyncSession, None]],
 ) -> Generator[FastAPI, None, None]:
-    """
-    Pytest fixture that provides a FastAPI app instance with the database
-    dependency overridden to use a test-specific session.
-
-    This is the primary fixture tests should use when they need to make
-    API calls to the application that interact with the database.
-
-    It ensures that each test run gets a clean, isolated database session
-    and cleans up the override after the test completes.
-
-    Yields:
-        The FastAPI app instance, configured for isolated DB testing.
-    """
+    """FastAPI app with DB dependency overridden."""
     app.dependency_overrides[get_db] = override_get_db
-
     yield app
-
     app.dependency_overrides.clear()
 
 
@@ -159,6 +121,7 @@ def app_with_db(
 
 @pytest.fixture
 async def test_user(db_session: AsyncSession) -> tuple[str, str]:
+    """Creates a default test user."""
     user = User(
         username=settings.TEST_USERNAME,
         email=settings.TEST_EMAIL,
@@ -170,3 +133,46 @@ async def test_user(db_session: AsyncSession) -> tuple[str, str]:
     await db_session.commit()
     await db_session.refresh(user)
     return user.username, settings.TEST_PASSWORD
+
+
+@pytest.fixture
+async def admin_user(db_session: AsyncSession) -> tuple[str, str]:
+    """Creates an admin user."""
+    user = User(
+        username="admin",
+        email="admin@example.com",
+        hashed_password=get_password_hash("AdminPass123!"),
+        full_name="Admin User",
+        scopes=["admin"],
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user.username, "AdminPass123!"
+
+
+@pytest.fixture
+async def auth_token(async_client: AsyncClient, test_user: tuple[str, str]) -> str:
+    """Logs in as the test user and returns a Bearer token."""
+    username, password = test_user
+    resp = await async_client.post(
+        "/token",
+        data={"username": username, "password": password},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    resp.raise_for_status()
+    json_data = cast(dict[str, Any], resp.json())
+    return cast(str, json_data["access_token"])
+
+
+@pytest.fixture
+async def admin_token(async_client: AsyncClient, admin_user: tuple[str, str]) -> str:
+    """Logs in as admin and returns a Bearer token."""
+    username, password = admin_user
+    resp = await async_client.post(
+        "/token",
+        data={"username": username, "password": password},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    resp.raise_for_status()
+    return cast(str, resp.json()["access_token"])
